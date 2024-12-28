@@ -11,6 +11,7 @@ public class BleDevice {
 
     private String name;
     private String deviceId;
+    private boolean isConnected;
 
     public BleDevice() {
     }
@@ -18,7 +19,9 @@ public class BleDevice {
     public BleDevice(String name, String deviceId) {
         this.name = name;
         this.deviceId = deviceId;
+        this.isConnected = false;
     }
+
 
     public String getId() {
         return id;
@@ -40,12 +43,21 @@ public class BleDevice {
         this.deviceId = deviceId;
     }
 
+    public boolean isConnected() {
+        return isConnected;
+    }
+
+    public void setConnected(boolean connected) {
+        isConnected = connected;
+    }
+
     @Override
     public String toString() {
         return "BleDevice{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 ", deviceId='" + deviceId + '\'' +
+                ", isConnected=" + isConnected +
                 '}';
     }
 }

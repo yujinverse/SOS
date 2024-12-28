@@ -1,19 +1,6 @@
-# scan_ble.ps1
 
-# BLE 장치 검색
-$devices = Get-PnpDevice -Class Bluetooth | Where-Object { $_.Status -eq "OK" }
+$devices = Get-PnpDevice | Where-Object { $_.Class -eq "Bluetooth" }
 
-# 필요한 정보만 선택
-$bleDevices = foreach ($device in $devices) {
-    $name = $device.FriendlyName
-    $deviceId = $device.InstanceId
-    if ($name) {
-        [PSCustomObject]@{
-            Name = $name
-            DeviceID = $deviceId
-        }
-    }
-}
+$deviceList = $devices | Select-Object @{Name="name";Expression={$_.FriendlyName}}, @{Name="deviceId";Expression={$_.InstanceId}}
 
-# JSON 형식으로 출력
-$bleDevices | ConvertTo-Json
+$deviceList | ConvertTo-Json
