@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -21,8 +23,12 @@ import java.util.concurrent.CompletableFuture;
 public class BleService {
 
     private static final Logger logger = LoggerFactory.getLogger(BleService.class);
-    private static final String POWERSHELL_SCAN_SCRIPT_PATH = "C:\\RCT\\scan_ble.ps1";
-    private static final String POWERSHELL_CONNECT_SCRIPT_PATH = "C:\\RCT\\connect_ble.ps1";
+
+    @Value("${ble.scan.script.path}")
+    private String scanScriptPath;
+
+    @Value("${ble.connect.script.path}")
+    private String connectScriptPath;
 
     private final BleDeviceRepository bleDeviceRepository;
 
@@ -41,7 +47,7 @@ public class BleService {
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    POWERSHELL_SCAN_SCRIPT_PATH
+                    scanScriptPath
             );
             builder.redirectErrorStream(true);
             Process process = builder.start();
@@ -61,7 +67,7 @@ public class BleService {
                 return CompletableFuture.completedFuture(devices);
             }
 
-            logger.debug("PowerShell 스크립트 출력: {}", jsonOutput.toString());
+            logger.debug("PowerShell 스크립트 출력: {}", jsonOutput);
 
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(jsonOutput.toString());
@@ -95,7 +101,6 @@ public class BleService {
 
     @Async
     public CompletableFuture<Boolean> connectBleDeviceAsync(String deviceId) {
-        // 파일 검증 로직 추가
         if (!validateConnectScript()) {
             logger.warn("연결 스크립트 파일이 유효하지 않아 BLE 장치 연결을 중단합니다.");
             return CompletableFuture.completedFuture(false);
@@ -109,7 +114,7 @@ public class BleService {
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    POWERSHELL_CONNECT_SCRIPT_PATH,
+                    connectScriptPath,
                     deviceId
             );
             builder.redirectErrorStream(true);
@@ -124,11 +129,10 @@ public class BleService {
 
             int exitCode = process.waitFor();
             logger.info("PowerShell 연결 스크립트 종료 코드: {}", exitCode);
-            logger.debug("PowerShell 연결 스크립트 출력: {}", output.toString());
+            logger.debug("PowerShell 연결 스크립트 출력: {}", output);
 
             if (exitCode == 0) {
                 logger.info("BLE 장치에 성공적으로 연결되었습니다: {}", deviceId);
-                // 연결 상태 업데이트
                 BleDevice device = bleDeviceRepository.findByDeviceId(deviceId);
                 if (device != null) {
                     device.setConnected(true);
@@ -148,22 +152,22 @@ public class BleService {
 
     private boolean validateConnectScript() {
         try {
-            logger.info("연결 스크립트 파일 검증을 시작합니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
-            File connectScript = new File(POWERSHELL_CONNECT_SCRIPT_PATH);
+            logger.info("연결 스크립트 파일 검증을 시작합니다: {}", connectScriptPath);
+            File connectScript = new File(connectScriptPath);
 
             if (!connectScript.exists()) {
-                logger.warn("연결 스크립트 파일이 존재하지 않습니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
+                logger.warn("연결 스크립트 파일이 존재하지 않습니다: {}", connectScriptPath);
                 return false;
             }
 
             if (!connectScript.isFile()) {
-                logger.warn("연결 스크립트 경로가 파일이 아닙니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
+                logger.warn("연결 스크립트 경로가 파일이 아닙니다: {}", connectScriptPath);
                 return false;
             }
 
-            String content = new String(Files.readAllBytes(Paths.get(POWERSHELL_CONNECT_SCRIPT_PATH)));
-            if (!content.contains("BLE 장치 연결")) { // 실제 검증 로직에 맞게 수정
-                logger.warn("연결 스크립트 파일 내용이 예상과 다릅니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
+            String content = new String(Files.readAllBytes(Paths.get(connectScriptPath)));
+            if (!content.contains("BLE 장치 연결")) {
+                logger.warn("연결 스크립트 파일 내용이 예상과 다릅니다: {}", connectScriptPath);
                 return false;
             }
 
@@ -171,7 +175,7 @@ public class BleService {
             return true;
 
         } catch (Exception e) {
-            logger.error("연결 스크립트 파일 검증 중 오류 발생: {}", POWERSHELL_CONNECT_SCRIPT_PATH, e);
+            logger.error("연결 스크립트 파일 검증 중 오류 발생: {}", connectScriptPath, e);
             return false;
         }
     }
