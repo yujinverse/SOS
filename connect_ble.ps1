@@ -2,16 +2,10 @@ param (
     [string]$DeviceId
 )
 
-$device = Get-PnpDevice | Where-Object { $_.InstanceId -eq $DeviceId }
+Write-Output "Activating BLE device: $DeviceId"
+Enable-PnpDevice -InstanceId $DeviceId -Confirm:$false
 
-if ($device) {
 
-    Enable-PnpDevice -InstanceId $DeviceId -Confirm:$false
+Write-Output "BLE device connected: $DeviceId"
+exit 0
 
-    Write-Output "BLE 장치에 연결 중: $DeviceId"
-
-    exit 0
-} else {
-    Write-Output "BLE 장치를 찾을 수 없습니다: $DeviceId"
-    exit 1
-}

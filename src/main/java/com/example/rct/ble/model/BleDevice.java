@@ -11,7 +11,7 @@ public class BleDevice {
 
     private String name;
     private String deviceId;
-    private boolean isConnected;
+    private boolean connected; // 연결 상태 추가
 
     public BleDevice() {
     }
@@ -19,9 +19,10 @@ public class BleDevice {
     public BleDevice(String name, String deviceId) {
         this.name = name;
         this.deviceId = deviceId;
-        this.isConnected = false;
+        this.connected = false;
     }
-//
+
+    // Getters and Setters
 
     public String getId() {
         return id;
@@ -44,11 +45,11 @@ public class BleDevice {
     }
 
     public boolean isConnected() {
-        return isConnected;
+        return connected;
     }
 
     public void setConnected(boolean connected) {
-        isConnected = connected;
+        this.connected = connected;
     }
 
     @Override
@@ -57,7 +58,7 @@ public class BleDevice {
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 ", deviceId='" + deviceId + '\'' +
-                ", isConnected=" + isConnected +
+                ", connected=" + connected +
                 '}';
     }
 }

@@ -6,12 +6,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class BleService {
@@ -26,7 +30,8 @@ public class BleService {
         this.bleDeviceRepository = bleDeviceRepository;
     }
 
-    public List<BleDevice> scanBleDevices() {
+    @Async
+    public CompletableFuture<List<BleDevice>> scanBleDevicesAsync() {
         List<BleDevice> devices = new ArrayList<>();
         try {
             logger.info("BLE 스캔 시작");
@@ -53,7 +58,7 @@ public class BleService {
 
             if (exitCode != 0) {
                 logger.error("PowerShell 스크립트가 비정상적으로 종료되었습니다.");
-                return devices;
+                return CompletableFuture.completedFuture(devices);
             }
 
             logger.debug("PowerShell 스크립트 출력: {}", jsonOutput.toString());
@@ -79,14 +84,23 @@ public class BleService {
         } catch (Exception e) {
             logger.error("BLE 스캔 중 오류 발생", e);
         }
-        return devices;
+        return CompletableFuture.completedFuture(devices);
     }
 
-    public List<BleDevice> getAllBleDevices() {
-        return bleDeviceRepository.findAll();
+    @Async
+    public CompletableFuture<List<BleDevice>> getAllBleDevicesAsync() {
+        List<BleDevice> devices = bleDeviceRepository.findAll();
+        return CompletableFuture.completedFuture(devices);
     }
 
-    public boolean connectBleDevice(String deviceId) {
+    @Async
+    public CompletableFuture<Boolean> connectBleDeviceAsync(String deviceId) {
+        // 파일 검증 로직 추가
+        if (!validateConnectScript()) {
+            logger.warn("연결 스크립트 파일이 유효하지 않아 BLE 장치 연결을 중단합니다.");
+            return CompletableFuture.completedFuture(false);
+        }
+
         try {
             logger.info("BLE 장치에 연결 시도: {}", deviceId);
 
@@ -114,14 +128,50 @@ public class BleService {
 
             if (exitCode == 0) {
                 logger.info("BLE 장치에 성공적으로 연결되었습니다: {}", deviceId);
-                return true;
+                // 연결 상태 업데이트
+                BleDevice device = bleDeviceRepository.findByDeviceId(deviceId);
+                if (device != null) {
+                    device.setConnected(true);
+                    bleDeviceRepository.save(device);
+                }
+                return CompletableFuture.completedFuture(true);
             } else {
                 logger.error("BLE 장치 연결에 실패했습니다: {}", deviceId);
-                return false;
+                return CompletableFuture.completedFuture(false);
             }
 
         } catch (Exception e) {
             logger.error("BLE 장치 연결 중 오류 발생: {}", deviceId, e);
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    private boolean validateConnectScript() {
+        try {
+            logger.info("연결 스크립트 파일 검증을 시작합니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
+            File connectScript = new File(POWERSHELL_CONNECT_SCRIPT_PATH);
+
+            if (!connectScript.exists()) {
+                logger.warn("연결 스크립트 파일이 존재하지 않습니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
+                return false;
+            }
+
+            if (!connectScript.isFile()) {
+                logger.warn("연결 스크립트 경로가 파일이 아닙니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
+                return false;
+            }
+
+            String content = new String(Files.readAllBytes(Paths.get(POWERSHELL_CONNECT_SCRIPT_PATH)));
+            if (!content.contains("BLE 장치 연결")) { // 실제 검증 로직에 맞게 수정
+                logger.warn("연결 스크립트 파일 내용이 예상과 다릅니다: {}", POWERSHELL_CONNECT_SCRIPT_PATH);
+                return false;
+            }
+
+            logger.info("연결 스크립트 파일이 정상적으로 검증되었습니다.");
+            return true;
+
+        } catch (Exception e) {
+            logger.error("연결 스크립트 파일 검증 중 오류 발생: {}", POWERSHELL_CONNECT_SCRIPT_PATH, e);
             return false;
         }
     }
