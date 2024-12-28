@@ -17,7 +17,8 @@ import java.util.List;
 public class BleService {
 
     private static final Logger logger = LoggerFactory.getLogger(BleService.class);
-    private static final String POWERSHELL_SCRIPT_PATH = "C:\\RCT\\scan_ble.ps1";
+    private static final String POWERSHELL_SCAN_SCRIPT_PATH = "C:\\RCT\\scan_ble.ps1";
+    private static final String POWERSHELL_CONNECT_SCRIPT_PATH = "C:\\RCT\\connect_ble.ps1";
 
     private final BleDeviceRepository bleDeviceRepository;
 
@@ -35,7 +36,7 @@ public class BleService {
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    POWERSHELL_SCRIPT_PATH
+                    POWERSHELL_SCAN_SCRIPT_PATH
             );
             builder.redirectErrorStream(true);
             Process process = builder.start();
@@ -61,8 +62,8 @@ public class BleService {
             JsonNode root = mapper.readTree(jsonOutput.toString());
             if (root.isArray()) {
                 for (JsonNode node : root) {
-                    String name = node.get("Name").asText();
-                    String deviceId = node.get("DeviceID").asText();
+                    String name = node.get("name").asText();
+                    String deviceId = node.get("deviceId").asText();
                     BleDevice device = new BleDevice(name, deviceId);
                     devices.add(device);
                 }
@@ -83,5 +84,45 @@ public class BleService {
 
     public List<BleDevice> getAllBleDevices() {
         return bleDeviceRepository.findAll();
+    }
+
+    public boolean connectBleDevice(String deviceId) {
+        try {
+            logger.info("BLE 장치에 연결 시도: {}", deviceId);
+
+            ProcessBuilder builder = new ProcessBuilder(
+                    "powershell.exe",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    POWERSHELL_CONNECT_SCRIPT_PATH,
+                    deviceId
+            );
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            StringBuilder output = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+
+            int exitCode = process.waitFor();
+            logger.info("PowerShell 연결 스크립트 종료 코드: {}", exitCode);
+            logger.debug("PowerShell 연결 스크립트 출력: {}", output.toString());
+
+            if (exitCode == 0) {
+                logger.info("BLE 장치에 성공적으로 연결되었습니다: {}", deviceId);
+                return true;
+            } else {
+                logger.error("BLE 장치 연결에 실패했습니다: {}", deviceId);
+                return false;
+            }
+
+        } catch (Exception e) {
+            logger.error("BLE 장치 연결 중 오류 발생: {}", deviceId, e);
+            return false;
+        }
     }
 }

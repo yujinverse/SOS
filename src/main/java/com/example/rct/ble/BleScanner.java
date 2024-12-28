@@ -55,7 +55,7 @@ public class BleScanner {
     }
 }
 
-class BleDevice {
+class BleDevice {//
     private String name;
     private String deviceId;
 
