@@ -35,7 +35,7 @@ public class BleController {
         }
     }
 
-    @PostMapping("/connect/{deviceId}")
+    @PostMapping("/connect/{deviceId}")//
     public ResponseEntity<String> connectToBleDevice(@PathVariable String deviceId) {
         boolean isConnected = bleService.connectBleDevice(deviceId);
         if (isConnected) {
