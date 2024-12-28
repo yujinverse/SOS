@@ -21,7 +21,7 @@ public class BleDevice {
         this.deviceId = deviceId;
         this.isConnected = false;
     }
-
+//
 
     public String getId() {
         return id;

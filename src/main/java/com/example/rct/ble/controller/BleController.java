@@ -24,7 +24,7 @@ public class BleController {
             return ResponseEntity.noContent().build();
         }
     }
-
+//
     @GetMapping("/devices")
     public ResponseEntity<List<BleDevice>> getAllBleDevices() {
         List<BleDevice> devices = bleService.getAllBleDevices();
